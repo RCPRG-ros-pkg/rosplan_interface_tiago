@@ -12,7 +12,7 @@ from actionlib_msgs.msg import GoalStatus
 from pal_common_msgs.msg import *
 from rosplan_tiago_common.tiago_torso_controller import TiagoHeadController
 from rosplan_tiago_common.tiago_kb import TiagoKBQuery
-
+import rosplan_tiago_common.common_sm_states as common_sm_states
 
 NAVIGATION_MAX_TIME_S = 200
 
@@ -45,31 +45,7 @@ class Initialize(smach.State):
         # userdata.init_result = action_result.result
 
         return 'ok'
-
-
-class SetNavParams(smach.State):
-    def __init__(self):
-        self.node_name = "(" + rospy.get_name() + ")"
-        self.dynparam_client = dynamic_reconfigure.client.Client('move_base/PalLocalPlanner')
-        smach.State.__init__(self,
-                             outcomes=['ok', 'preemption', 'error'],
-                             input_keys=['set_nav_params_params'])
-
-    def execute(self, userdata):
-        rospy.loginfo('{}: Executing state: {}'.format(self.node_name, self.__class__.__name__))
-
-        # setting planner params so it the robot moves slowly
-        # params = userdata.set_nav_params_params
-        params = {
-            'max_vel_x': 0.1,
-            'acc_lim_x': 0.05
-        }
-
-        config = self.dynparam_client.update_configuration(params)
-
-        return 'ok'
-
-
+'''
 class SetHeadPose(smach.State):
     def __init__(self):
         self.node_name = "(" + rospy.get_name() + ")"
@@ -91,7 +67,7 @@ class SetHeadPose(smach.State):
         self.head_controller.tilt_down()
 
         return 'ok'
-
+'''
 
 class NavAndScan(smach.State):
     def __init__(self):
@@ -162,47 +138,6 @@ class NavAndScan(smach.State):
         self.move_base_status = status
 
 
-class SetDefaultParams(smach.State):
-    def __init__(self):
-        self.node_name = "(" + rospy.get_name() + ")"
-        self.dynparam_client = dynamic_reconfigure.client.Client('move_base/PalLocalPlanner')
-        smach.State.__init__(self,
-                             outcomes=['ok', 'preemption', 'error'])
-
-    def execute(self, userdata):
-        rospy.loginfo('{}: Executing state: {}'.format(self.node_name, self.__class__.__name__))
-
-        # set default params back
-        params = {
-            'max_vel_x': 0.5,
-            'acc_lim_x': 0.2
-        }
-        config = self.dynparam_client.update_configuration(params)
-
-        return 'ok'
-
-
-class ReleaseHead(smach.State):
-    def __init__(self):
-        self.node_name = "(" + rospy.get_name() + ")"
-        self.pal_head_manager_client = actionlib.SimpleActionClient('pal_head_manager/disable', DisableAction)
-        self.head_controller = TiagoHeadController()
-        smach.State.__init__(self,
-                             outcomes=['ok', 'preemption', 'error'])
-
-    def execute(self, userdata):
-        rospy.loginfo('{}: Executing state: {}'.format(self.node_name, self.__class__.__name__))
-
-        # bring back default head
-        self.pal_head_manager_client.wait_for_server()
-        self.pal_head_manager_client.cancel_all_goals()
-
-        # head up
-        self.head_controller.tilt_forward()
-
-        return 'ok'
-
-
 class Finalize(smach.State):
     def __init__(self):
         self.node_name = "(" + rospy.get_name() + ")"
@@ -237,14 +172,14 @@ class GoScanningServer(smach.StateMachine):
                                               'init_goal_pose': 'sm_goal_pose'})
 
             smach.StateMachine.add('SetNavParams',
-                                   SetNavParams(),
+                                   common_sm_states.SetNavParams(0.1, 0.05),
                                    transitions={'ok': 'SetHeadPose',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},
                                    remapping={'set_nav_params_params': 'sm_params'})
 
             smach.StateMachine.add('SetHeadPose',
-                                   SetHeadPose(),
+                                   common_sm_states.ReleaseHead('tilt_forward'),
                                    transitions={'ok': 'NavAndScan',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},
@@ -258,14 +193,14 @@ class GoScanningServer(smach.StateMachine):
                                    remapping={'nav_and_scan_goal_pose': 'sm_goal_pose'})
 
             smach.StateMachine.add('SetDefaultParams',
-                                   SetDefaultParams(),
+                                   common_sm_states.SetNavParams(0.5, 0.2),
                                    transitions={'ok': 'ReleaseHead',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},
                                    remapping={})
 
             smach.StateMachine.add('ReleaseHead',
-                                   ReleaseHead(),
+                                   common_sm_states.ReleaseHead('tilt_forward'),
                                    transitions={'ok': 'Finalize',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},

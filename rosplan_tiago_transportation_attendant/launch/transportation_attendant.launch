@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
 
+    <arg name="in_sim"  default="false"/>
+
     <!-- ROSPlan -->
     <include file="$(find rosplan_planning_system)/launch/interfaced_planning_system.launch" >
         <arg name="domain_path"		value="$(find rosplan_tiago_transportation_attendant)/pddl/transportation_attendant/domain/domain.pddl" />
@@ -55,9 +57,15 @@
 
     <!-- params servers -->
     <node name="rosplan_interface_location_name_server" pkg="rosplan_tiago_params" type="location_name_server" respawn="false" output="screen">
+        <param name="map_tf_file" value="$(find tiago_sim_integration)/maps/012/map_tf_sim_to_real.yaml" if="$(arg in_sim)" />
     </node>
 
     <node name="rosplan_interface_people_server" pkg="rosplan_tiago_params" type="people_server" respawn="false" output="screen">
+        <param name="map_tf_file" value="$(find tiago_sim_integration)/maps/012/map_tf_sim_to_real.yaml" if="$(arg in_sim)" />
+    </node>
+
+    <node name="rosplan_interface_location_marker_publisher" pkg="rosplan_tiago_params" type="location_marker_publisher" respawn="false" output="screen">
+        <param name="map_tf_file" value="$(find tiago_sim_integration)/maps/012/map_tf_sim_to_real.yaml" if="$(arg in_sim)" />
     </node>
 
     <!-- common -->

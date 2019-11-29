@@ -17,7 +17,10 @@ class TiagoHeadController:
 
         # initialize publisher for setting services
         self.client = actionlib.SimpleActionClient('head_controller/point_head_action', PointHeadAction)
-        self.client.wait_for_server()
+
+        # Wait for server for 10 seconds.
+        # Crash, if there is no such action.
+        assert self.client.wait_for_server(timeout=rospy.Duration(5))
 
     def __send_goal(self, pointting_frame, pointing_axis, target_point, min_duration):
         point = PointStamped()
@@ -56,9 +59,20 @@ class TiagoSpeechController:
 
         # initialize publisher for setting services
         self.client = actionlib.SimpleActionClient('tts', TtsAction)
-        self.client.wait_for_server()
+
+        # Wait for server for 10 seconds.
+        # Crash, if there is no such action.
+        #assert self.client.wait_for_server(timeout=rospy.Duration(10))
+
+        if not self.client.wait_for_server(timeout=rospy.Duration(5)):
+            self.client = None
 
     def __send_goal(self, lang, text_to_speech, delay):
+        # TODO: use artificial action server for simulated system
+        if self.client is None:
+            print "TiagoSpeechController.__send_goal: not implemanted for simulated system!"
+            return
+
         goal = TtsGoal()
         goal.rawtext.lang_id = lang
         goal.rawtext.text = text_to_speech
@@ -75,7 +89,10 @@ class TiagoTorsoController:
     def __init__(self):
         # initialize publisher for setting services
         self.client = actionlib.SimpleActionClient('torso_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
-        self.client.wait_for_server()
+
+        # Wait for server for 10 seconds.
+        # Crash, if there is no such action.
+        assert self.client.wait_for_server(timeout=rospy.Duration(5))
 
     def __send_goal(self, height):
         jtp = JointTrajectoryPoint()

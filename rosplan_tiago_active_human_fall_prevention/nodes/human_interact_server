@@ -12,6 +12,7 @@ from rosplan_tiago_scenarios_msgs.msg import HumanInteractActionResult
 from rosplan_tiago_common.tiago_torso_controller import TiagoSpeechController
 from rosplan_tiago_common.tiago_torso_controller import TiagoHeadController
 from pal_common_msgs.msg import *
+import rosplan_tiago_common.common_sm_states as common_sm_states
 
 
 class Initialize(smach.State):
@@ -124,27 +125,6 @@ class SayBye(smach.State):
         return 'ok'
 
 
-class ReleaseHead(smach.State):
-    def __init__(self):
-        self.node_name = "(" + rospy.get_name() + ")"
-        self.pal_head_manager_client = actionlib.SimpleActionClient('pal_head_manager/disable', DisableAction)
-        self.head_controller = TiagoHeadController()
-        smach.State.__init__(self,
-                             outcomes=['ok', 'preemption', 'error'])
-
-    def execute(self, userdata):
-        rospy.loginfo('{}: Executing state: {}'.format(self.node_name, self.__class__.__name__))
-
-        # bring back default head
-        self.pal_head_manager_client.wait_for_server()
-        self.pal_head_manager_client.cancel_all_goals()
-
-        # head up
-        self.head_controller.tilt_forward()
-
-        return 'ok'
-
-
 class Finalize(smach.State):
     def __init__(self):
         self.node_name = "(" + rospy.get_name() + ")"
@@ -213,7 +193,7 @@ class HumanInteractServer(smach.StateMachine):
                                    remapping={})
 
             smach.StateMachine.add('ReleaseHead',
-                                   ReleaseHead(),
+                                   common_sm_states.ReleaseHead('tilt_forward'),
                                    transitions={'ok': 'Finalize',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},

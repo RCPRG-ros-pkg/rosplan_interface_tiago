@@ -3,14 +3,39 @@
 import rospy
 import yaml
 import rospkg
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Point, Quaternion, Transform, TransformStamped, PoseStamped
 from rosplan_tiago_core_msgs.srv import *
 from rospy_message_converter import message_converter
-
+from tf.transformations import quaternion_from_euler
+import tf2_geometry_msgs
 
 CONFIG_RELATIVE_PATH = '/config/locations.yml'
 PKG_NAME = 'rosplan_tiago_params'
 
+def readTransform():
+    try:
+        map_tf_file = rospy.get_param('~map_tf_file')
+        print 'Using map_tf_file: "' + map_tf_file + '"'
+    except:
+        map_tf_file = None
+        print 'No transformation is used'
+
+    with open(map_tf_file, 'r') as yaml_file:
+        map_tf_file_yaml = yaml.safe_load(yaml_file)
+        if map_tf_file_yaml is None:
+            self.transform = None
+        else:
+            transform = TransformStamped()
+            transform.transform.translation.x = map_tf_file_yaml['translation'][0]
+            transform.transform.translation.y = map_tf_file_yaml['translation'][1]
+            transform.transform.translation.z = map_tf_file_yaml['translation'][2]
+            quat = quaternion_from_euler( 0.0, 0.0, map_tf_file_yaml['rotation'] )
+            transform.transform.rotation.x = quat[0]
+            transform.transform.rotation.y = quat[1]
+            transform.transform.rotation.z = quat[2]
+            transform.transform.rotation.w = quat[3]
+            return transform
+    return None
 
 class LocationNameServer:
     def __init__(self):
@@ -24,6 +49,8 @@ class LocationNameServer:
         rospack = rospkg.RosPack()
         rospack_path = rospack.get_path(PKG_NAME)
         self.yaml_file_path = rospack_path + CONFIG_RELATIVE_PATH
+
+        self.transform = readTransform()
 
     def get_location_from_yml(self, msg):
         is_location_name_found = False
@@ -43,6 +70,10 @@ class LocationNameServer:
                     is_location_name_found = True
                     pose_dict = named_pose_value['pose']
                     pose = message_converter.convert_dictionary_to_ros_message('geometry_msgs/Pose', pose_dict)
+                    if not self.transform is None:
+                        pose_s = PoseStamped()
+                        pose_s.pose = pose
+                        pose = tf2_geometry_msgs.do_transform_pose(pose_s, self.transform).pose
                     break
 
             if not is_location_name_found:

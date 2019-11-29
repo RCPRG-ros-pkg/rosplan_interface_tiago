@@ -14,6 +14,7 @@ from rosplan_tiago_scenarios_msgs.msg import GoWithAttendanceActionFeedback
 from rosplan_tiago_scenarios_msgs.msg import GoWithAttendanceActionResult
 from rosplan_tiago_common.tiago_torso_controller import TiagoSpeechController
 from rosplan_tiago_common.tiago_torso_controller import TiagoTorsoController
+import rosplan_tiago_common.common_sm_states as common_sm_states
 
 
 NAVIGATION_MAX_TIME_S = 200
@@ -21,6 +22,7 @@ NAVIGATION_MAX_TIME_S = 200
 
 class Initialize(smach.State):
     def __init__(self):
+        print "go_with_attendance_server: Initialize"
         self.node_name = "(" + rospy.get_name() + ")"
         smach.State.__init__(self,
                              outcomes=['ok', 'preemption', 'error'],
@@ -40,51 +42,9 @@ class Initialize(smach.State):
         userdata.init_human = human
         return 'ok'
 
-
-class SetNavParams(smach.State):
-    def __init__(self):
-        self.node_name = "(" + rospy.get_name() + ")"
-        self.dynparam_client = dynamic_reconfigure.client.Client('move_base/PalLocalPlanner')
-        smach.State.__init__(self,
-                             outcomes=['ok', 'preemption', 'error'])
-
-    def execute(self, userdata):
-        rospy.loginfo('{}: Executing state: {}'.format(self.node_name, self.__class__.__name__))
-
-        # setting planner params so it the robot moves slowly
-        # params = userdata.set_nav_params_params
-        params = {
-            'max_vel_x': 0.2,
-            'acc_lim_x': 0.05
-        }
-
-        config = self.dynparam_client.update_configuration(params)
-
-        return 'ok'
-
-
-class SetHeight(smach.State):
-    def __init__(self):
-        self.node_name = "(" + rospy.get_name() + ")"
-        self.speech_controller = TiagoSpeechController()
-        self.torso_controller = TiagoTorsoController()
-        smach.State.__init__(self,
-                             outcomes=['ok', 'preemption', 'error'])
-
-    def execute(self, userdata):
-        rospy.loginfo('{}: Executing state: {}'.format(self.node_name, self.__class__.__name__))
-
-        self.speech_controller.tts('Setting my height for moving.')
-
-        # set height from 0.00 to 0.35
-        self.torso_controller.set_torso_height(0.0)
-        rospy.sleep(3)
-
-        return 'ok'
-
-
 class TellAboutStart(smach.State):
     def __init__(self):
+        print "go_with_attendance_server: TellAboutStart"
         self.node_name = "(" + rospy.get_name() + ")"
         self.speech_controller = TiagoSpeechController()
         smach.State.__init__(self,
@@ -104,6 +64,7 @@ class TellAboutStart(smach.State):
 
 class Navigate(smach.State):
     def __init__(self):
+        print "go_with_attendance_server: Navigate"
         self.node_name = "(" + rospy.get_name() + ")"
         self.move_base_status = GoalStatus.PENDING
         self.is_move_base_finished = False
@@ -163,6 +124,7 @@ class Navigate(smach.State):
 
 class TellAboutStop(smach.State):
     def __init__(self):
+        print "go_with_attendance_server: TellAboutStop"
         self.node_name = "(" + rospy.get_name() + ")"
         self.speech_controller = TiagoSpeechController()
         smach.State.__init__(self,
@@ -175,45 +137,6 @@ class TellAboutStop(smach.State):
         rospy.sleep(3)
 
         return 'ok'
-
-
-class SetDefaultParams(smach.State):
-    def __init__(self):
-        self.node_name = "(" + rospy.get_name() + ")"
-        self.dynparam_client = dynamic_reconfigure.client.Client('move_base/PalLocalPlanner')
-        smach.State.__init__(self,
-                             outcomes=['ok', 'preemption', 'error'])
-
-    def execute(self, userdata):
-        rospy.loginfo('{}: Executing state: {}'.format(self.node_name, self.__class__.__name__))
-
-        # set default params back
-        params = {
-            'max_vel_x': 0.5,
-            'acc_lim_x': 0.2
-        }
-        config = self.dynparam_client.update_configuration(params)
-
-        return 'ok'
-
-
-class SetDefaultHeight(smach.State):
-    def __init__(self):
-        self.node_name = "(" + rospy.get_name() + ")"
-        self.speech_controller = TiagoSpeechController()
-        self.torso_controller = TiagoTorsoController()
-        smach.State.__init__(self,
-                             outcomes=['ok', 'preemption', 'error'])
-
-    def execute(self, userdata):
-        rospy.loginfo('{}: Executing state: {}'.format(self.node_name, self.__class__.__name__))
-
-        # self.speech_controller.tts('Let me take a breath.')
-        # self.torso_controller.set_torso_height(0.2)
-        # rospy.sleep(2)
-
-        return 'ok'
-
 
 class Finalize(smach.State):
     def __init__(self):
@@ -251,14 +174,14 @@ class GoWithAttendanceServer(smach.StateMachine):
                                               'init_human': 'sm_human'})
 
             smach.StateMachine.add('SetNavParams',
-                                   SetNavParams(),
+                                   common_sm_states.SetNavParams(0.2, 0.05),
                                    transitions={'ok': 'SetHeight',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},
                                    remapping={})
 
             smach.StateMachine.add('SetHeight',
-                                   SetHeight(),
+                                   common_sm_states.SetHeight(0.0),
                                    transitions={'ok': 'TellAboutStart',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},
@@ -286,14 +209,14 @@ class GoWithAttendanceServer(smach.StateMachine):
                                    remapping={})
 
             smach.StateMachine.add('SetDefaultParams',
-                                   SetDefaultParams(),
+                                   common_sm_states.SetNavParams(0.5, 0.2),
                                    transitions={'ok': 'SetDefaultHeight',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},
                                    remapping={})
 
             smach.StateMachine.add('SetDefaultHeight',
-                                   SetDefaultHeight(),
+                                   common_sm_states.SetHeight(0.2),
                                    transitions={'ok': 'Finalize',
                                                 'preemption': 'PREEMPTED',
                                                 'error': 'FAILED'},
