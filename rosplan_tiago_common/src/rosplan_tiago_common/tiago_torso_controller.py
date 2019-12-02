@@ -70,7 +70,7 @@ class TiagoSpeechController:
     def __send_goal(self, lang, text_to_speech, delay):
         # TODO: use artificial action server for simulated system
         if self.client is None:
-            print "TiagoSpeechController.__send_goal: not implemanted for simulated system!"
+            print "TiagoSpeechController.__send_goal: not implemented for simulated system!"
             return
 
         goal = TtsGoal()
