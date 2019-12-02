@@ -39,6 +39,9 @@ class SetNavParams(smach.State):
         elif self.local_planner_name == 'EBandPlannerROS':
             assert 'max_vel_lin' in config
             assert 'max_acceleration' in config
+        elif self.local_planner_name == 'TebLocalPlannerROS':
+            assert 'max_vel_x' in config
+            assert 'acc_lim_x' in config
         else:
             raise Exception('Local planner "' + self.local_planner_name + '" is not supported.')
 
@@ -50,13 +53,18 @@ class SetNavParams(smach.State):
         # Differrent planners have different parameters
         if self.local_planner_name == 'PalLocalPlanner':
             params = {
-                'max_vel_x': 0.2,
-                'acc_lim_x': 0.05
+                'max_vel_x': self.max_lin_vel,
+                'acc_lim_x': self.max_lin_accel
             }
         elif self.local_planner_name == 'EBandPlannerROS':
             params = {
-                'max_vel_lin': 0.2,
-                'max_acceleration': 0.05
+                'max_vel_lin': self.max_lin_vel,
+                'max_acceleration': self.max_lin_accel
+            }
+        elif self.local_planner_name == 'TebLocalPlannerROS':
+            params = {
+                'max_vel_x': self.max_lin_vel,
+                'acc_lim_x': self.max_lin_accel
             }
         else:
             raise Exception('Local planner "' + self.local_planner_name + '" is not supported.')
