@@ -60,7 +60,7 @@ include_directories(
 )
 
 install(PROGRAMS
-        nodes/go_with_attendace_server
+        nodes/go_with_attendance_server
         nodes/leave_load_server
         nodes/get_load_server
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
